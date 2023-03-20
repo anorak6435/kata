@@ -1,5 +1,9 @@
 print("brain world!")
 
+valid_chars = set({"+", "-", ">", "<", ".", ",", "[", "]"})
+RIGHT = 1
+LEFT = -1
+
 HELLO_WORLD = """[ This program prints "Hello World!" and a newline to the screen, its
   length is 106 active command characters. [It is not the shortest.]
 
@@ -71,15 +75,80 @@ HELLO_WORLD = """[ This program prints "Hello World!" and a newline to the scree
 # At the end of the program I should check if the two lists of
 # expected outputs match with the first n values in the memory arrray
 def run(program : str) -> list[int]:
-	"run a program returning the memory_state in list"
-	raise NotImplementedError("Not Yet run()!")
+  "run a program returning the memory_state in list"
+  memory_state = [0] * 50 # initial memory state FIXME 30000 cells
+  ptr = 0 # track at what memory cell the program is at.
+
+  # loop over the program checking that there are equal [ and ] characters
+  balance = 0
+  for char in program:
+    if char == '[':
+      balance += 1
+    elif char == ']':
+      balance -= 1
+
+  assert balance == 0, f"There should be the same number of [ and ] characters in your code!"
+
+  char_index = 0
+  while char_index < len(program):
+    c = program[char_index]
+    if c not in valid_chars:
+      continue # ignore go to the invald char.
+    # when I get here I know the character is one I expect
+    
+    match c:
+      case '+':
+        memory_state[ptr] += 1
+        if memory_state[ptr] == 256:
+          memory_state[ptr] = 0
+      case '-':
+        memory_state[ptr] -= 1
+        if memory_state[ptr] == -1:
+          memory_state[ptr] = 255
+      case '>':
+        ptr += 1
+        if ptr == len(memory_state):
+          ptr = 0
+      case '<':
+        ptr -= 1
+        if ptr == -1:
+          ptr = len(memory_state)-1
+      case "[":
+        if memory_state[ptr] == 0:
+          # jump to 1 char after matching ]
+          balance = 1
+          char_index += 1 # get the char index away from the first '[' chracter
+          while balance != 0:
+            if program[char_index] == '[':
+              balance += 1
+            elif program[char_index] == ']':
+              balance -= 1
+            char_index += 1
+      case "]":
+        if memory_state[ptr] != 0:
+          # jump to 1 char after matching [
+            balance = -1
+            char_index -= 1
+            while balance != 0:
+              if program[char_index] == '[':
+                balance += 1
+              elif program[char_index] == ']':
+                balance -= 1
+              char_index -= 1
+      case ".":
+        print(chr(memory_state[ptr]), end="")
+      case _:
+        raise Exception("Operation not implemented", c)
+    char_index += 1
+  return memory_state
+        
 
 	
 def start_of_list_equals(x, y):
-	return x == y
+  return x == y
 
 def is_zero(x):
-	return x == 0
+  return x == 0
 
 
 def test(program : str, expected : list[int]) -> bool:
@@ -91,4 +160,13 @@ def test(program : str, expected : list[int]) -> bool:
 	
 	return all(map(start_of_list_equals, cut_given, expected))
 
+
+# define a list of tests for the program.
+
 assert test("+++", [3]), "Simple add does not work!"
+assert test("---", [253]), "Simple sub does not work!"
+assert test("+>->+", [1, 255, 1]), "Simple right does not work!"
+assert test("++>>-<-<--", [0, 255, 255]), "simple left does not work!"
+assert test("++++++++++.", [10]), "Could not build the number for the newline!"
+# assert test("++++++++++[->++++++<]>++.", [0, 62]), "Could not print the '>' char"
+run(HELLO_WORLD)
